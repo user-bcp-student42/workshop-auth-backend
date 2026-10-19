@@ -7,55 +7,96 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
 import org.apache.commons.text.StringEscapeUtils;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Path("/auth")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class AuthResource {
+    private static final Logger LOGGER = Logger.getLogger(AuthResource.class);
+    private static final int BAD_REQUEST_STATUS = 400;
+    private static final int UNAUTHORIZED_STATUS = 401;
+    private static final int INTERNAL_SERVER_ERROR_STATUS = 500;
+    private static final String REQUEST_NULL_MESSAGE = "Request is null";
+    private static final String USERNAME_REQUIRED_MESSAGE = "Username is required";
+    private static final String PASSWORD_REQUIRED_MESSAGE = "Password is required";
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid user %s or password";
+    private static final String UNKNOWN_ERROR_MESSAGE = "Unknown error";
+    private static final String INTERNAL_SERVER_ERROR_MESSAGE = "Internal server error";
+    private static final String DEBUG_AUTHENTICATION_FLOW = "authenticated-with-legacy-flow";
+
     @Inject
-    LegacyDatabase database;
+    AuthenticationService authenticationService;
 
     @POST
     @Path("/login")
     public Response login(LoginRequest request) {
-        try {
-            if (request == null) {
-                return Response.status(400).entity(Map.of("message", "Request is null")).build();
-            } else {
-                if (request.username == null || request.username.trim().isEmpty()) {
-                    return Response.status(400).entity(Map.of("message", "Username is required")).build();
-                } else {
-                    if (request.password == null || request.password.trim().isEmpty()) {
-                        return Response.status(400).entity(Map.of("message", "Password is required")).build();
-                    } else {
-                        UserRecord user = database.findByCredentials(request.username, request.password);
-                        if (user == null) {
-                            return Response.status(401).entity(Map.of("message", "Invalid user " + request.username + " or password")).build();
-                        } else {
-                            String token = LegacyTokenUtil.create(user.username(), user.role());
-                            Map<String, Object> response = new HashMap<>();
-                            response.put("token", token);
-                            response.put("expiresIn", 3600);
-                            response.put("user", Map.of(
-                                    "username", user.username(),
-                                    "displayName", StringEscapeUtils.escapeHtml4(user.displayName()),
-                                    "role", user.role()
-                            ));
-                            response.put("debug", "authenticated-with-legacy-flow");
-                            return Response.ok(response).build();
-                        }
-                    }
-                }
-            }
-        } catch (Exception error) {
-            return Response.status(500).entity(Map.of(
-                    "message", error.getMessage() == null ? "Unknown error" : error.getMessage(),
-                    "exception", error.getClass().getName()
-            )).build();
+        Response validationResponse = validateRequest(request);
+        if (validationResponse != null) {
+            return validationResponse;
         }
+
+        try {
+            Optional<AuthenticatedSession> session = authenticationService.authenticate(request.username, request.password);
+            if (session.isEmpty()) {
+                return unauthorizedResponse(request.username);
+            }
+
+            return Response.ok(toLoginResponse(session.get())).build();
+        } catch (Exception error) {
+            return internalServerErrorResponse(error);
+        }
+    }
+
+    private Response validateRequest(LoginRequest request) {
+        if (request == null) {
+            return badRequestResponse(REQUEST_NULL_MESSAGE);
+        }
+        if (isBlank(request.username)) {
+            return badRequestResponse(USERNAME_REQUIRED_MESSAGE);
+        }
+        if (isBlank(request.password)) {
+            return badRequestResponse(PASSWORD_REQUIRED_MESSAGE);
+        }
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private Response badRequestResponse(String message) {
+        return Response.status(BAD_REQUEST_STATUS).entity(Map.of("message", message)).build();
+    }
+
+    private Response unauthorizedResponse(String username) {
+        return Response.status(UNAUTHORIZED_STATUS)
+                .entity(Map.of("message", INVALID_CREDENTIALS_MESSAGE.formatted(username)))
+                .build();
+    }
+
+    private Map<String, Object> toLoginResponse(AuthenticatedSession session) {
+        UserRecord user = session.user();
+        return Map.of(
+                "token", session.token(),
+                "expiresIn", session.expiresIn(),
+                "user", Map.of(
+                        "username", user.username(),
+                        "displayName", StringEscapeUtils.escapeHtml4(user.displayName()),
+                        "role", user.role()
+                ),
+                "debug", DEBUG_AUTHENTICATION_FLOW
+        );
+    }
+
+    private Response internalServerErrorResponse(Exception error) {
+        LOGGER.error("Authentication request failed", error);
+        return Response.status(INTERNAL_SERVER_ERROR_STATUS)
+            .entity(Map.of("message", INTERNAL_SERVER_ERROR_MESSAGE))
+            .build();
     }
 }
