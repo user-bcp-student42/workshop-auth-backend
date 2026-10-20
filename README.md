@@ -6,7 +6,7 @@ Backend Quarkus que autentica usuarios de laboratorio almacenados en SQLite y en
 
 ## Ejecución
 
-Requisitos: JDK 21 y Maven 3.9+.
+Requisitos: JDK 25 y Maven 3.9+.
 
 ```bash
 mvn quarkus:dev

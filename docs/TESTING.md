@@ -124,14 +124,15 @@ public class TestOnlyFailingHealthCheck implements HealthCheck {
 
 ## Comandos y medición
 
-Comandos ejecutados desde la raíz del repositorio del componente (`workshop-auth-backend/`) en PowerShell, con Temurin JDK `21.0.12.1`. Se fijó el puerto HTTP de test a `18081` porque el puerto por defecto estaba ocupado.
+Los comandos de la matriz se ejecutaron antes de la actualización con Temurin JDK `21.0.12.1`; el puerto HTTP de test se fijó a `18081` porque el puerto por defecto estaba ocupado. La verificación posterior a la actualización se ejecutó desde la raíz del componente en PowerShell con Microsoft JDK `25.0.4.1` y Maven `3.10.0`.
 
 | comando | directorio | código de salida | resultado observado |
 |---|---|---:|---|
+| `mvn -B verify` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 26 tests, 0 fallos, 0 errores. |
 | `mvn "-Dquarkus.http.test-port=18081" "-Dtest=AuthResourceTest,HealthEndpointTest,HealthDownEndpointTest" test` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 19 tests, 0 fallos, 0 errores. |
 | `mvn "-Dquarkus.http.test-port=18081" clean verify` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 22 tests, 0 fallos, 0 errores; reporte JaCoCo generado. |
 
-**Medición JaCoCo:** plugin `org.jacoco:jacoco-maven-plugin:0.8.12`, ejecución `report` en la fase `verify`. Reporte: `target/site/jacoco/index.html`; fuente numérica: `target/site/jacoco/jacoco.xml`. Cobertura de líneas de producción: `123/131 = 93.9%`. `LegacyDatabase` tiene `88.1%` (70/78 líneas); las demás clases productivas del bundle tienen `100%`. El umbral de REGLAS.md es `85%`; no se deshabilitó ni redujo ningún quality gate.
+**Medición JaCoCo:** plugin `org.jacoco:jacoco-maven-plugin:0.8.15`, ejecución `report` en la fase `verify`. Reporte: `target/site/jacoco/index.html`; fuente numérica: `target/site/jacoco/jacoco.xml`. Cobertura de líneas de producción: `166/178 = 93.3%`. `LegacyDatabase` tiene `89.9%` (80/89 líneas); las demás clases productivas del bundle tienen `100%`. El umbral de REGLAS.md es `85%`; no se deshabilitó ni redujo ningún quality gate.
 
 ## Fallos
 
