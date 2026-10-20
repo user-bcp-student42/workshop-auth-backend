@@ -1,8 +1,16 @@
 {
   "servers": {
-    "github-local": {
+    "github-official": {
       "type": "http",
-      "url": "http://localhost:8081/mcp"
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "github-official-readonly": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "X-MCP-Toolsets": "issues,repos,pull_requests",
+        "X-MCP-Readonly": "true"
+      }
     }
   }
 }
