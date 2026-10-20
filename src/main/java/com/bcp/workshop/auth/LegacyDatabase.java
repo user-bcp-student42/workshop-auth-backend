@@ -26,14 +26,21 @@ public class LegacyDatabase implements UserRepository {
 
     private final String databaseUrl;
     private final PasswordHasher passwordHasher;
+    private final boolean seedDefaultUsers;
 
     @Inject
     public LegacyDatabase(
             @ConfigProperty(name = "auth.db.url", defaultValue = "jdbc:sqlite:./data/workshop.db") String databaseUrl,
-            PasswordHasher passwordHasher
+            PasswordHasher passwordHasher,
+            @ConfigProperty(name = "auth.db.seed-users", defaultValue = "true") boolean seedDefaultUsers
     ) {
         this.databaseUrl = databaseUrl;
         this.passwordHasher = passwordHasher;
+        this.seedDefaultUsers = seedDefaultUsers;
+    }
+
+    LegacyDatabase(String databaseUrl, PasswordHasher passwordHasher) {
+        this(databaseUrl, passwordHasher, true);
     }
 
     @PostConstruct
@@ -45,7 +52,9 @@ public class LegacyDatabase implements UserRepository {
                 try {
                     createUsersTable(connection);
                     ensurePasswordFormatColumn(connection);
-                    seedDefaultUsers(connection);
+                    if (seedDefaultUsers) {
+                        seedDefaultUsers(connection);
+                    }
                     migrateLegacyPasswords(connection);
                     connection.commit();
                 } catch (Exception error) {

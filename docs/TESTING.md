@@ -128,11 +128,15 @@ Los comandos de la matriz se ejecutaron antes de la actualización con Temurin J
 
 | comando | directorio | código de salida | resultado observado |
 |---|---|---:|---|
+| `mvn -B -Dtest=LegacyDatabaseMigrationTest test` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 4 tests, 0 fallos, 0 errores. Incluye la verificación de siembra deshabilitada y conservación de cuentas existentes. |
+| `mvn -B verify` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 28 tests, 0 fallos, 0 errores. |
 | `mvn -B verify` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 26 tests, 0 fallos, 0 errores. |
 | `mvn "-Dquarkus.http.test-port=18081" "-Dtest=AuthResourceTest,HealthEndpointTest,HealthDownEndpointTest" test` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 19 tests, 0 fallos, 0 errores. |
 | `mvn "-Dquarkus.http.test-port=18081" clean verify` | raíz de `workshop-auth-backend/` | `0` | BUILD SUCCESS; 22 tests, 0 fallos, 0 errores; reporte JaCoCo generado. |
 
-**Medición JaCoCo:** plugin `org.jacoco:jacoco-maven-plugin:0.8.15`, ejecución `report` en la fase `verify`. Reporte: `target/site/jacoco/index.html`; fuente numérica: `target/site/jacoco/jacoco.xml`. Cobertura de líneas de producción: `166/178 = 93.3%`. `LegacyDatabase` tiene `89.9%` (80/89 líneas); las demás clases productivas del bundle tienen `100%`. El umbral de REGLAS.md es `85%`; no se deshabilitó ni redujo ningún quality gate.
+**Medición JaCoCo tras H-06:** plugin `org.jacoco:jacoco-maven-plugin:0.8.15`, ejecución `report` en la fase `verify`. Reporte: `target/site/jacoco/index.html`; fuente numérica: `target/site/jacoco/jacoco.xml`. Cobertura de líneas de producción: `170/182 = 93.4%`. `LegacyDatabase` tiene `90.3%` (84/93 líneas). El umbral de REGLAS.md es `85%`; no se deshabilitó ni redujo ningún quality gate.
+
+**Nota de ejecución en JDK 25:** durante `mvn -B verify`, dos threads de fondo registraron `IllegalAccessError`/`NoClassDefFoundError` de `org.jboss.threads.JDKSpecific$ThreadAccess` y sugirieron `--add-opens java.base/java.lang=ALL-UNNAMED`. Maven aun así terminó con `BUILD SUCCESS` y 28 tests sin fallos ni errores; repetir con esa opción en `MAVEN_OPTS` no eliminó los mensajes. Este comportamiento queda como pendiente separado del cambio H-06.
 
 ## Fallos
 
