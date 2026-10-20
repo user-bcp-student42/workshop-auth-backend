@@ -8,6 +8,8 @@ Backend Quarkus que autentica usuarios de laboratorio almacenados en SQLite y en
 
 Requisitos: JDK 25 y Maven 3.9+.
 
+Las cuentas semilla se crean por defecto en perfiles no productivos. El perfil `prod` desactiva la siembra; las cuentas existentes no se eliminan.
+
 ```bash
 mvn quarkus:dev
 ```

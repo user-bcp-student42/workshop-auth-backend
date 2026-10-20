@@ -13,6 +13,7 @@ import java.sql.Statement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LegacyDatabaseMigrationTest {
@@ -36,6 +37,7 @@ class LegacyDatabaseMigrationTest {
         assertTrue(passwordHasher.verify(LEGACY_PASSWORD, migratedHash, PasswordHasher.BCRYPT_FORMAT));
         assertEquals("BCRYPT_V1", readPasswordFormat(databaseUrl, "student"));
         assertNotNull(database.findByUsername("student"));
+        assertNotNull(database.findByUsername("trainer"));
 
         database.initialize();
 
@@ -55,6 +57,29 @@ class LegacyDatabaseMigrationTest {
 
         assertEquals("RESET_REQUIRED", readPasswordFormat(databaseUrl, "ambiguous-user"));
         assertEquals("", readPassword(databaseUrl, "ambiguous-user"));
+    }
+
+    @Test
+    void doesNotSeedDefaultUsersWhenSeedingIsDisabled() throws Exception {
+        String databaseUrl = "jdbc:sqlite:" + temporaryDirectory.resolve("empty-users.db");
+        LegacyDatabase database = new LegacyDatabase(databaseUrl, new PasswordHasher(), false);
+
+        database.initialize();
+
+        assertNull(database.findByUsername("student"));
+        assertNull(database.findByUsername("trainer"));
+    }
+
+    @Test
+    void preservesExistingUsersWhenSeedingIsDisabled() throws Exception {
+        String databaseUrl = "jdbc:sqlite:" + temporaryDirectory.resolve("existing-users.db");
+        createLegacyDatabase(databaseUrl);
+        LegacyDatabase database = new LegacyDatabase(databaseUrl, new PasswordHasher(), false);
+
+        database.initialize();
+
+        assertNotNull(database.findByUsername("student"));
+        assertNull(database.findByUsername("trainer"));
     }
 
     private void createLegacyDatabase(String databaseUrl) throws Exception {
