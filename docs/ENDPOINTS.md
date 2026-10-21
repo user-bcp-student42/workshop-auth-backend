@@ -18,7 +18,7 @@ El acceso desde navegador está sujeto a CORS. En perfiles no productivos se per
 |---|---|---|---|
 | `username` | string | sí | Usuario. Debe contener al menos un carácter distinto de espacio; el valor no se recorta antes de autenticar. |
 | `password` | string | sí | Contraseña. Debe contener al menos un carácter distinto de espacio. |
-| `client` | string | no | Campo aceptado por el DTO, pero no se usa para autenticar ni se incluye en la respuesta. |
+| `client` | string | sí | Identificador del cliente; no puede ser nulo, vacío ni contener solo espacios. |
 
 Ejemplo completo:
 
@@ -36,7 +36,7 @@ Ejemplo completo:
 
 | campo | tipo | descripcion |
 |---|---|---|
-| `token` | string | JWT compacto firmado con RS256, con claims `iss`, `sub`, `role`, `iat` y `exp`. El valor cambia en cada emisión. |
+| `token` | string | JWT compacto firmado con RS256, con claims `iss`, `sub`, `role`, `iat`, `exp` y `client`. `client` conserva el valor enviado en la solicitud. El valor del token cambia en cada emisión. |
 | `expiresIn` | integer | Duración declarada en segundos: `3600`. |
 | `user` | object | Datos básicos de la cuenta autenticada. |
 | `user.username` | string | Nombre de usuario. |
@@ -48,7 +48,7 @@ Ejemplo completo de respuesta (el token es ilustrativo y no es una credencial re
 
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ3b3Jrc2hvcC1hdXRoIiwic3ViIjoic3R1ZGVudCIsInJvbGUiOiJTVFVERU5UIiwiaWF0IjoxNzkyNDQ0MjYxLCJleHAiOjE3OTI0NDc4NjEsImp0aSI6IjcxYjcyNTNkMjg4OTQ1YTBhZGI5ZGRkNDFjZjAyYTFkIn0.TaS3Vv9bAJEZKZkX1Ov-WlVoOs8C1Sr_D774E_DtbJ9Z0QzVX4TMnQgvx_4tjBYHeYHPTxMcy1zOH_MFKLptKakW3WMNs9tmsiF2vkLdsmJWj1BrHxKXO2sG1Kjh0Eicps3E42tBeJcJXn34bQLKxaeL1fK--mXjLIGYGN5l1zZzPa80Lj4mTr5mdCH9S5aIvYP7brpYBbAj8iULfDLoWDZ7MRs9cg5M-rF8GAr8by-m7J4ceycEvmGpMGaGFuHY9eP19utiuP3WKKidUd2De9ildLW_ubEQL8vHfrEmkp-aArYjoPhfaAh9h1OszyurGWzud43sQ1pty_PRTTJJMA",
+  "token": "<JWT RS256 con claims iss, sub, role, iat, exp y client>",
   "expiresIn": 3600,
   "user": {
     "username": "student",
@@ -61,13 +61,13 @@ Ejemplo completo de respuesta (el token es ilustrativo y no es una credencial re
 
 ### 5. Respuestas de error
 
-**400 Bad Request**, cuando el cuerpo JSON es `null`, falta `username` o `password`, o uno de esos campos es nulo/vacío/solo espacios. El cuerpo contiene `message`:
+**400 Bad Request**, cuando el cuerpo JSON es `null`, falta `username`, `password` o `client`, o uno de esos campos es nulo/vacío/solo espacios. El cuerpo contiene `message`:
 
 ```json
 {"message":"Username is required"}
 ```
 
-Para una solicitud nula, el mensaje es `Request is null`; para una contraseña ausente o vacía, es `Password is required`.
+Para una solicitud nula, el mensaje es `Request is null`; para una contraseña ausente o vacía, es `Password is required`; para un `client` ausente o vacío, es `Client is required`.
 
 **400 Bad Request**, si el cuerpo JSON no se puede deserializar. El estado es gestionado por Quarkus/Jackson, no por `AuthResource`; su cuerpo exacto no está fijado por el código ni por las pruebas.
 
@@ -100,8 +100,8 @@ Nota: los errores SQL que `LegacyDatabase` captura y convierte en resultado sin 
 ### 6. Notas de seguridad
 
 - Las contraseñas se verifican contra hashes BCrypt; las contraseñas heredadas se migran durante la inicialización de la base.
-- `AUTH_TOKEN_PRIVATE_KEY` debe señalar a la clave privada RSA de firma administrada fuera del repositorio; `AUTH_TOKEN_ISSUER` configura el emisor. Nunca use la clave de pruebas en despliegues.
-- El token se firma con RS256 y contiene `sub`, `role`, `iat` y `exp`; `expiresIn` es `3600` segundos. El payload JWT está codificado, no cifrado, por lo que no debe contener datos sensibles.
+- En producción no hay una clave de firma por defecto: `AUTH_TOKEN_PRIVATE_KEY` debe señalar a una clave privada RSA administrada fuera del repositorio; si falta o no se puede leer, no se pueden emitir tokens. `AUTH_TOKEN_ISSUER` configura el emisor. Nunca use la clave de pruebas en despliegues.
+- El token se firma con RS256 y contiene `iss`, `sub`, `role`, `iat`, `exp` y `client`; `client` conserva el valor de la solicitud y `expiresIn` es `3600` segundos. El payload JWT está codificado, no cifrado, por lo que no debe contener datos sensibles.
 - Este backend emite tokens, pero no valida ni revoca tokens entrantes. Los servicios consumidores deben verificar la firma con la clave pública correspondiente y validar issuer y expiración antes de confiar en sus claims.
 - En producción configure `AUTH_CORS_ORIGINS` con orígenes explícitos y `AUTH_TOKEN_PRIVATE_KEY` con una clave administrada fuera del repositorio.
 

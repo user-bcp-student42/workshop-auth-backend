@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
@@ -13,13 +16,17 @@ import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TokenIssuerTest {
     private static final String TEST_ISSUER = "https://workshop-auth.test";
+    private static final String TEST_CLIENT = "angular-workshop";
     private static final long TOKEN_LIFESPAN_SECONDS = 3600;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -27,7 +34,10 @@ class TokenIssuerTest {
     @Test
     void issuesSignedJwtWithExplicitClaimsAndExpectedLifetime() throws Exception {
         Instant testStartedAt = Instant.now();
-        IssuedToken issuedToken = newTokenIssuer().issueFor(new UserRecord(1, "student", "Workshop Student", "STUDENT"));
+        IssuedToken issuedToken = newTokenIssuer().issueFor(
+            new UserRecord(1, "student", "Workshop Student", "STUDENT"),
+            TEST_CLIENT
+        );
         Instant testFinishedAt = Instant.now();
         String[] jwtSegments = issuedToken.value().split("\\.");
 
@@ -37,6 +47,7 @@ class TokenIssuerTest {
         assertEquals("RS256", header.path("alg").asText());
         assertEquals("student", claims.path("sub").asText());
         assertEquals("STUDENT", claims.path("role").asText());
+        assertEquals(TEST_CLIENT, claims.path("client").asText());
         assertEquals(TEST_ISSUER, claims.path("iss").asText());
         assertEquals(TOKEN_LIFESPAN_SECONDS, issuedToken.expiresIn());
         assertTrue(claims.path("iat").asLong() >= testStartedAt.getEpochSecond() - 1);
@@ -48,12 +59,30 @@ class TokenIssuerTest {
 
     @Test
     void rejectsJwtSignatureWhenVerifiedWithDifferentKey() throws Exception {
-        IssuedToken issuedToken = newTokenIssuer().issueFor(new UserRecord(1, "student", "Workshop Student", "STUDENT"));
+        IssuedToken issuedToken = newTokenIssuer().issueFor(
+            new UserRecord(1, "student", "Workshop Student", "STUDENT"),
+            TEST_CLIENT
+        );
         String[] jwtSegments = issuedToken.value().split("\\.");
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048);
 
         assertFalse(verifySignature(jwtSegments, keyPairGenerator.generateKeyPair().getPublic()));
+    }
+
+    @Test
+    void productionSigningRequiresExternalKeyAndCannotIssueWithoutIt() throws IOException {
+        Properties signingProperties = new Properties();
+        try (InputStream propertiesFile = Files.newInputStream(Path.of("src/main/resources/application.properties"))) {
+            signingProperties.load(propertiesFile);
+        }
+
+        assertEquals("${AUTH_TOKEN_PRIVATE_KEY}", signingProperties.getProperty("smallrye.jwt.sign.key.location"));
+        assertNull(signingProperties.getProperty("auth.token.secret"));
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TokenIssuer(TEST_ISSUER, "missing-private-key-for-production-test.pem")
+        );
     }
 
     private TokenIssuer newTokenIssuer() {
