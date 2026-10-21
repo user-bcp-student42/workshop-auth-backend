@@ -32,13 +32,14 @@ public class TokenIssuer {
         this.signingKey = loadSigningKey(signingKeyLocation);
     }
 
-    public IssuedToken issueFor(UserRecord user) {
+    public IssuedToken issueFor(UserRecord user, String client) {
         long issuedAt = Instant.now().getEpochSecond();
         long expiresAt = issuedAt + TOKEN_LIFESPAN_SECONDS;
         String value = Jwt.claims(Map.of(
                 "iss", issuer,
                 "sub", user.username(),
                 "role", user.role(),
+                "client", client,
                 "iat", issuedAt,
                 "exp", expiresAt
         )).jws().sign(signingKey);

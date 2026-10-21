@@ -24,6 +24,7 @@ public class AuthResource {
     private static final String REQUEST_NULL_MESSAGE = "Request is null";
     private static final String USERNAME_REQUIRED_MESSAGE = "Username is required";
     private static final String PASSWORD_REQUIRED_MESSAGE = "Password is required";
+    private static final String CLIENT_REQUIRED_MESSAGE = "Client is required";
     private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid user %s or password";
     private static final String UNKNOWN_ERROR_MESSAGE = "Unknown error";
     private static final String INTERNAL_SERVER_ERROR_MESSAGE = "Internal server error";
@@ -41,7 +42,11 @@ public class AuthResource {
         }
 
         try {
-            Optional<AuthenticatedSession> session = authenticationService.authenticate(request.username, request.password);
+                Optional<AuthenticatedSession> session = authenticationService.authenticate(
+                    request.username,
+                    request.password,
+                    request.client
+                );
             if (session.isEmpty()) {
                 return unauthorizedResponse(request.username);
             }
@@ -61,6 +66,9 @@ public class AuthResource {
         }
         if (isBlank(request.password)) {
             return badRequestResponse(PASSWORD_REQUIRED_MESSAGE);
+        }
+        if (isBlank(request.client)) {
+            return badRequestResponse(CLIENT_REQUIRED_MESSAGE);
         }
         return null;
     }
@@ -94,7 +102,7 @@ public class AuthResource {
     }
 
     private Response internalServerErrorResponse(Exception error) {
-        LOGGER.error("Authentication request failed", error);
+        LOGGER.errorf("Authentication request failed (%s)", error.getClass().getSimpleName());
         return Response.status(INTERNAL_SERVER_ERROR_STATUS)
             .entity(Map.of("message", INTERNAL_SERVER_ERROR_MESSAGE))
             .build();

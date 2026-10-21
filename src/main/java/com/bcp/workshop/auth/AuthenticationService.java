@@ -16,7 +16,7 @@ public class AuthenticationService {
     @Inject
     PasswordHasher passwordHasher;
 
-    public Optional<AuthenticatedSession> authenticate(String username, String password) {
+    public Optional<AuthenticatedSession> authenticate(String username, String password, String client) {
         UserCredential credential = userRepository.findByUsername(username);
         if (credential == null || !passwordHasher.verify(
             password,
@@ -32,7 +32,7 @@ public class AuthenticationService {
                 credential.displayName(),
                 credential.role()
         );
-        IssuedToken issuedToken = tokenIssuer.issueFor(user);
+        IssuedToken issuedToken = tokenIssuer.issueFor(user, client);
         return Optional.of(new AuthenticatedSession(user, issuedToken.value(), issuedToken.expiresIn()));
     }
 }
