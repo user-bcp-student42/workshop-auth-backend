@@ -11,6 +11,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Check dependency review availability
+        id: availability
+        uses: actions/github-script@v8
+        with:
+          script: |
+            try {
+              await github.request('GET /repos/{owner}/{repo}/dependency-graph/compare/{basehead}', {
+                ...context.repo,
+                basehead: `${context.payload.pull_request.base.sha}...${context.payload.pull_request.head.sha}`
+              });
+              core.setOutput('supported', 'true');
+            } catch (error) {
+              if (error.status !== 403) {
+                throw error;
+              }
+              core.setOutput('supported', 'false');
+              const warning = 'Dependency review was not performed: GitHub returned HTTP 403 for the dependency graph. ' +
+                'Enable Dependency graph and, for private repositories, GitHub Code Security in ' +
+                `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/settings/security_analysis.`;
+              core.warning(warning);
+              await core.summary.addHeading('Dependency review skipped').addRaw(warning).write();
+            }
       - uses: actions/dependency-review-action@v4
+        if: steps.availability.outputs.supported == 'true'
         with:
           fail-on-severity: high
