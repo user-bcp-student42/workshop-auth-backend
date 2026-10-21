@@ -23,13 +23,11 @@ jobs:
               });
               core.setOutput('supported', 'true');
             } catch (error) {
-              const message = error.response?.data?.message ?? '';
-              if (error.status !== 403 ||
-                  !/dependency (?:review|graph).*(?:not (?:enabled|supported)|disabled)/i.test(message)) {
+              if (error.status !== 403) {
                 throw error;
               }
               core.setOutput('supported', 'false');
-              const warning = 'Dependency review was not performed: it is unavailable for this repository. ' +
+              const warning = 'Dependency review was not performed: GitHub returned HTTP 403 for the dependency graph. ' +
                 'Enable Dependency graph and, for private repositories, GitHub Code Security in ' +
                 `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/settings/security_analysis.`;
               core.warning(warning);

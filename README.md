@@ -31,8 +31,8 @@ La rama contiene deuda técnica y de seguridad deliberada: SQL concatenado, cont
 ## Dependency Review en GitHub Actions
 
 El workflow requiere Dependency graph habilitado y, para repositorios privados, GitHub Code Security.
-Si la API indica explícitamente que la funcionalidad no está disponible, el análisis se omite con una
-advertencia y un resumen en Actions; esto no significa que las dependencias estén libres de vulnerabilidades.
+Si la API responde HTTP 403, el análisis se omite con una advertencia y un resumen en Actions; esto no
+significa que las dependencias estén libres de vulnerabilidades.
 Habilitar la funcionalidad en **Settings → Code security** permite ejecutar el análisis y bloquear
 dependencias nuevas con vulnerabilidades de severidad alta o crítica. Los demás errores de la API siguen
 provocando un fallo del job.
